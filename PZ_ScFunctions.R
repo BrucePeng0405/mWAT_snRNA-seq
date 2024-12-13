@@ -1,9 +1,9 @@
 #===============================================================================
 # This script stores functions to analyze sc/snRNA-seq dataset
-# Version 1.7 at 2024-04-22
-# Created by Houyu Zhang
-# Issue report on houyuzhang@stu.pku.edu.cn
-# Copyright (c) 2023 __CarlosLab@PKU__. All rights reserved.
+# Version 1.0 at 2024-12-13
+# Created by Zhi Peng, the original version is from Houyu Zhang 
+# Issue report on zhi.peng@ki.se
+# Copyright (c) 2024 __MengXielab@KI__. All rights reserved.
 #===============================================================================
 #Global setup
 R.utils::setOption("clusterProfiler.download.method",'auto')
@@ -36,7 +36,7 @@ suppressPackageStartupMessages(library(SeuratDisk)) #remotes::install_github("mo
 suppressPackageStartupMessages(library(sctransform))
 suppressPackageStartupMessages(library(limma))
 suppressPackageStartupMessages(library(SingleR)) #BiocManager::install("SingleR")
-#suppressPackageStartupMessages(library(velocyto.R)) #devtools::install_github("velocyto-team/velocyto.R"), install boost first!
+suppressPackageStartupMessages(library(velocyto.R)) #devtools::install_github("velocyto-team/velocyto.R"), install boost first!
 suppressPackageStartupMessages(library(monocle3)) #devtools::install_github('cole-trapnell-lab/monocle3')
 suppressPackageStartupMessages(library(DoubletFinder)) #remotes::install_github("chris-mcginnis-ucsf/DoubletFinder")
 suppressPackageStartupMessages(library(clustree))
@@ -59,6 +59,12 @@ suppressPackageStartupMessages(library(wpa))
 suppressPackageStartupMessages(library(Scillus))
 suppressPackageStartupMessages(library(scCustomize))
 suppressPackageStartupMessages(library(scRNAtoolVis)) # devtools::install_github('junjunlab/scRNAtoolVis')
+suppressPackageStartupMessages(library(monocle))
+suppressPackageStartupMessages(library(monocle3))
+suppressPackageStartupMessages(library(loomR)) # Install devtools from CRAN install.packages("devtools") # Use devtools to install hdf5r and loomR from GitHub devtools::install_github(repo = "hhoeflin/hdf5r") devtools::install_github(repo = "mojaveazure/loomR", ref = "develop")
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(stringr))
 
 #===============================================================================
 # Download some utilities 
@@ -77,6 +83,12 @@ if(F){#SCENIC mouse motif database (# mc9nr: Motif collection version 9: 24k mot
 hughie_color <- c("#0072B5FF","#BC3C29FF", "#E18727FF", "#20854EFF", "#6F99ADFF", "#7876B1FF","#EE4C97FF", #nemj scheme
                   "#E64B35FF", "#4DBBD5FF", "#3C5488FF", "#F39B7FFF", "#8491B4FF", "#91D1C2FF", "#DC0000FF", "#7E6148FF", "#B09C85FF", #npg scheme
                   "#3B4992FF", "#631879FF", "#5F559BFF", "#A20056FF", "#808180FF", "#1B1919FF") #AAAS scheme
+
+mWAT_colors <- c( "#AAD0AC","#EED0E0","#EFE2AA","#83B4EF", "#DBC9B3","#8ECFF8","#7EC0C3","#EBAEA9","#BFA6C9",
+                    "#F5E0BA","#AED0DF","#89B780","#F5D8D0","#CB95BB","#808180FF")
+
+mWAT_SAMcolors <- c("#A6CEE3", "#66A5CC","#267CB6",
+                    "#A2D48E","#47A93A","#20854EFF")
 
 PairedColor <- c("#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6", "#6A3D9A", "#FFFF99", "#B15928")
 
@@ -592,7 +604,7 @@ RunSeurat <- function(ObjList, OutPrefix, NormalizationMethod = "VST", removeDou
       Obj <- NormalizeData(Obj, normalization.method = "LogNormalize", scale.factor = 10000)
       Obj <- FindVariableFeatures(Obj, selection.method = "vst", nfeatures = 2000)
       Obj <- ScaleData(Obj) %>% RunPCA(dims = 1:15) %>% RunUMAP(dims = 1:15) %>% 
-        FindNeighbors(reduction = "pca", dims = 1:15) %>% FindClusters(resolution = seq(from=0, by=0.05, length=3))
+        FindNeighbors(reduction = "pca", dims = 1:15) %>% FindClusters(resolution = seq(from=0, by=0.05, length=10))
     })
     
     pdf(paste0(OutPrefix,"UMAP-ByDoublets_",Sys.Date(),".pdf"), width = 8, height = 8)
@@ -697,11 +709,11 @@ RunSeurat <- function(ObjList, OutPrefix, NormalizationMethod = "VST", removeDou
   DimPlot(combined, reduction = "umap", group.by = c("ident","orig.ident"), label = T, repel = T, label.box =T, cols = hughie_color, label.color = "white")
   ggsave(paste0(OutPrefix,"UMAP-ByClusters_",Sys.Date(),".pdf"), width = 16, height = 8)
   
-  DimPlot(combined, reduction = "umap", split.by = "orig.ident", ncol = 2, label = T, repel = T, cols = hughie_color)
-  ggsave(paste0(OutPrefix,"UMAP-Byorig.ident_",Sys.Date(),".pdf"), width = 12, height = 12)
+  #DimPlot(combined, reduction = "umap", split.by = "orig.ident", ncol = 2, label = T, repel = T, cols = hughie_color)
+  #ggsave(paste0(OutPrefix,"UMAP-Byorig.ident_",Sys.Date(),".pdf"), width = 12, height = 12)
   
-  Plot_Cell_compoistion(Seurat_Obj = combined, ColorUse1 = hughie_color, ColorUse2 = hughie_color, OutPrefix = OutPrefix)
-  MarkersPlot(Seurat_Obj = combined, ColorUse = hughie_color, OutPrefix = OutPrefix, NMarkers = 10)
+  #Plot_Cell_compoistion(Seurat_Obj = combined, ColorUse1 = hughie_color, ColorUse2 = hughie_color, OutPrefix = OutPrefix)
+  #MarkersPlot(Seurat_Obj = combined, ColorUse = hughie_color, OutPrefix = OutPrefix, NMarkers = 10)
   
   # future::plan("multisession", workers = 4)
   return(combined)
@@ -783,7 +795,7 @@ Calculate_moduleScore <- function(Seurat_Obj, Seruat_DEG_file, NtopGene = 50, Ou
 MarkersPlot <- function(Seurat_Obj, OutPrefix, NMarkers = 20, ColorUse = hughie_color, logfc.threshold = 0.25, min.pct = 0.25, only.pos = TRUE){
   
   markers <- FindAllMarkers(Seurat_Obj, only.pos = only.pos, logfc.threshold = logfc.threshold, min.pct = min.pct) %>% 
-    filter(p_val_adj < 0.05) %>% filter(!str_detect(gene,"^mt-"))
+    filter(p_val < 0.05) %>% filter(!str_detect(gene,"^mt-"))
   write.csv(markers, file = paste0(OutPrefix, "Allmarkers_",Sys.Date(),".csv"), quote = F)
   
   TopMarkersList <- markers %>% group_by(cluster) %>% slice_max(n = NMarkers, order_by = avg_log2FC) %>% 
@@ -800,6 +812,61 @@ MarkersPlot <- function(Seurat_Obj, OutPrefix, NMarkers = 20, ColorUse = hughie_
   ggsave(paste0(OutPrefix, "Allmarkers_Heatmap_",Sys.Date(),".pdf"), width = 16, height = 20)
   return(TopMarkersList)
 }
+
+##' A wrapper to plot selected features heatmap
+##' @param Seurat_Obj A Seurat object
+##' @param features Selected genes
+##' @param ColorUse List of colors for plot
+##' @param OutPrefix Prefix for output file
+FeatureHeatmapPlot <- function(Seurat_Obj, OutPrefix, features,cols, group.by){
+
+  mycol2<- colorRamp2(c(-2, 0, 2), c("#0da9ce", "white", "#e74a32"))
+  
+  #各亚群平均表达量提取
+  aver_dt<- AverageExpression(Seurat_Obj,
+                              features= features,
+                              group.by = group.by,
+                              slot= 'data')
+  aver_dt<- as.data.frame(aver_dt$RNA)
+  
+  #归一化：
+  aver_dtt<- t(scale(t(aver_dt)))
+  
+  #添加行列注释：
+  cell_anno <- data.frame(cell_anno = colnames(aver_dt))
+  
+  cols<- cols
+  #cols<- c("#782AB6", "#3283FE", "#16FF32", "#85660D", "#565656", "#F7E1A0", 
+  #         "#1C8356", "#AA0DFE")
+  
+  names(cols) <- cell_anno$cell_anno
+
+  #列注释：
+  cell<- data.frame(colnames(aver_dtt))
+  colnames(cell) <- 'cell'
+  col_anno<- HeatmapAnnotation(df = cell,
+                               show_annotation_name= F,
+                               gp= gpar(col = 'white', lwd = 2),
+                               col= list(cell = cols))
+  
+  #热图绘制：
+  pdf(paste0(OutPrefix, "SelectedMarkers_Heatmap_",Sys.Date(),".pdf"), width = 8, height = 12)
+  print(Heatmap(aver_dtt,
+          name= 'Expression',
+          col= mycol2,
+          cluster_columns= F,
+          cluster_rows= F,
+          show_column_names = T,
+          #        column_names_side= c('top'),
+          #        column_names_rot= 60,
+          row_names_gp= gpar(fontsize = 12, fontface = 'italic'),
+          rect_gp= gpar(col = "white", lwd = 1.5),
+          #top_annotation= col_anno
+  )) #+ row_anno
+  dev.off()
+ 
+}
+
 
 ##' Function to plot cell quality metrice from a Seurat Obj
 ##' @param Seurat_Obj A Seurat object
@@ -968,11 +1035,12 @@ Plot_Cell_compoistion <- function(Seurat_Obj, ColorUse1, ColorUse2, OutPrefix, P
   CompositionFreq <- table(Seurat_Obj$orig.ident, Seurat_Obj@active.ident) %>% as.data.frame() 
   
   mat <- CompositionFreq %>% group_by(Var1) %>% mutate(Freq = Freq/sum(Freq) * 100) 
-  mat$Var2 <- factor(mat$Var2, levels = rev(levels(mat$Var2)))
-  
+  mat$Var2 <- factor(mat$Var2, levels = levels(mat$Var2))
+  write.csv(mat,paste0(OutPrefix, "cellNumbersPercentage_",Sys.Date(),".csv"))
   p2 <- ggplot(mat,aes(x=Var1, y=Freq, fill = Var2, label = paste0(round(Freq, 1), "%"))) + 
-    geom_bar(stat="identity", width = 0.7, color = "black") +
-    geom_text(position=position_stack(vjust=0.5), color="white") + 
+    geom_bar(stat="identity", width = 0.7, color = "black",
+             position = position_stack(reverse = T)) +
+    geom_text(position=position_stack(vjust=0.5, reverse = T), color="white") + 
     # scale_y_continuous(labels = scales::percent) +
     scale_fill_manual(values = ColorUse1) + 
     coord_flip() +  scale_x_discrete(limits = rev(levels(mat$Var1))) + theme_bw() + 
@@ -985,7 +1053,7 @@ Plot_Cell_compoistion <- function(Seurat_Obj, ColorUse1, ColorUse2, OutPrefix, P
     )
   plot(p2)
   ggsave(paste0(OutPrefix, "cellNumbersPerCluster_filled_",Sys.Date(),".pdf"), width = 10, height = 5)
-  
+  #browser()
   p4<-ggplot(mat,aes(x="", y=Freq, fill = Var2, label = paste0(round(Freq, 1), "%"))) + 
     geom_bar(stat="identity", width = 1, color = "black") +
     coord_polar("y", start = 0) +
@@ -1303,6 +1371,31 @@ PairWise_DEG_enrichment <- function(Seurat_obj, CellTypeInclude, PlotDEGHeatmap 
   plot(p)
   dev.off()
 }
+
+##' Enrichment plot for selected terms
+##' @param GO_enrichment_file A csv file containing selected GO terms
+##' @param OutPrefix OutPrefix
+Selected_enrichment_Plot <- function(GO_enrichment_file, OutPrefix){
+  #browser()
+  df <- read.table(GO_enrichment_file,sep = ",", header = T, row.names = 1)
+  df$GeneRatio <- parse_ratio(df$GeneRatio)
+  df$Description <- factor(df$Description,levels = rev(df$Description))
+  
+  ggplot(df, aes(x=Cluster, y = Description)) +
+    geom_point(aes(colour = p.adjust, size = GeneRatio))+
+    theme_bw()+
+    theme(panel.grid = element_blank(),
+          axis.text.x = element_text(angle = 90,hjust = 1, vjust = 0.5)) +
+    scale_colour_gradient2(low = "#0da9ce",high =  "#e74a32", midpoint = 0.025)+
+    labs(x = NULL, u = NULL) + 
+    guides(size = guide_legend(order = 1)) +
+    theme(legend.direction = "horizontal", legend.position = "top") +
+    scale_y_discrete(position = "right")
+  ggsave(paste0(OutPrefix,"Selectedmarkers__GO_dotplot_",Sys.Date(),".pdf"), width = 8, height = 12)
+  
+}
+  
+
 
 ##' Inference cell-cell communication on each sample using CellChat
 ##' @param Seurat_Obj A Seurat object
@@ -1644,6 +1737,7 @@ Generate_scvelo_InputFiles <- function(Seurat_obj, OutPrefix){
   write.csv(Seurat_obj@reductions$pca@cell.embeddings, file=paste0(OutPrefix,'scvelo_PCA.csv'), quote=F, row.names=F)
   # write gene names
   write.table(data.frame('gene'=rownames(counts_matrix)), file=paste0(OutPrefix,'scvelo_GeneNames.csv'), quote=F, row.names=F, col.names=F)
+  return()
 }
 
 Generate_cellex_InputFiles <- function(Seurat_obj, OutPrefix){
@@ -1772,3 +1866,130 @@ get_earliest_principal_node <- function(cds, root_type="mAd-1"){
   root_pr_nodes
 }
 
+#Scale monocle3 elements to 100
+monocle3_scale_to_100 <- function(cells_subset){
+  #browser()
+  df <- data.frame((cells_subset@phenoData@data))
+  df <- df[,c("Pseudotime", "Myannotation_Ad","timepoint")]
+  df <- df[order(df$Pseudotime, decreasing = F),]
+  df$Myannotation_Ad <- as.factor(df$Myannotation_Ad)
+  df$timepoint <- as.factor(df$timepoint)
+  #df <- df[,!(colnames(df) %in% c("Pseudotime")), drop = F]
+  len <- length(df$Pseudotime)
+  bin<-round(len/100)
+  Celltype <- c()
+  Pseudotime <- c()
+  timepoint <- c()
+  value1 <- c()
+  value2 <- c()
+  value3 <- c()
+  for(i in 0:99){
+    if(i < 99){
+      start <- 1+(bin*i)
+      stop <- bin+(bin*i)
+      freq_table1 <- table(df$Myannotation_Ad[c(start:stop)])
+      value1 <- names(freq_table1)[which.max(freq_table1)]
+      value2 <- median(as.numeric(as.vector(df$Pseudotime[c(start:stop)])))
+      freq_table3 <- table(df$timepoint[c(start:stop)])
+      value3 <- names(freq_table3)[which.max(freq_table3)]
+      #browser()
+      Celltype <- c(Celltype, value1)
+      Pseudotime <- c(Pseudotime, value2)
+      timepoint <- c(timepoint,value3)
+    }
+    else{
+      Celltype <- c(Celltype, value1)
+      Pseudotime <- c(Pseudotime, value2)
+      timepoint <- c(timepoint,value3)
+    }
+  }
+  return(data.frame(Celltype = Celltype,Pseudotime = Pseudotime,Timepoint = timepoint))
+}
+
+#Scale monocle3 elements to 100
+monocle3_scale_to_100_ASPC <- function(cells_subset){
+  #browser()
+  df <- data.frame((cells_subset@phenoData@data))
+  df <- df[,c("Pseudotime", "Myannotation_ASPC","timepoint")]
+  df <- df[order(df$Pseudotime, decreasing = F),]
+  df$Myannotation_ASPC <- as.factor(df$Myannotation_ASPC)
+  df$timepoint <- as.factor(df$timepoint)
+  #df <- df[,!(colnames(df) %in% c("Pseudotime")), drop = F]
+  len <- length(df$Pseudotime)
+  bin<-round(len/100)
+  Celltype <- c()
+  Pseudotime <- c()
+  timepoint <- c()
+  value1 <- c()
+  value2 <- c()
+  value3 <- c()
+  for(i in 0:99){
+    if(i < 99){
+      start <- 1+(bin*i)
+      stop <- bin+(bin*i)
+      freq_table1 <- table(df$Myannotation_ASPC[c(start:stop)])
+      value1 <- names(freq_table1)[which.max(freq_table1)]
+      value2 <- median(as.numeric(as.vector(df$Pseudotime[c(start:stop)])))
+      freq_table3 <- table(df$timepoint[c(start:stop)])
+      value3 <- names(freq_table3)[which.max(freq_table3)]
+      #browser()
+      Celltype <- c(Celltype, value1)
+      Pseudotime <- c(Pseudotime, value2)
+      timepoint <- c(timepoint,value3)
+    }
+    else{
+      Celltype <- c(Celltype, value1)
+      Pseudotime <- c(Pseudotime, value2)
+      timepoint <- c(timepoint,value3)
+    }
+  }
+  return(data.frame(Celltype = Celltype,Pseudotime = Pseudotime,Timepoint = timepoint))
+}
+
+##' Calulate Velocity and plot
+##' @param emat spliced
+##' @param nmat unspliced
+##' @param cell.dist cell distance of umap
+##' @param prefix Prefix for output file
+##' @param emb Umap information
+##' @param cell.colors cell.colors
+##' @examples
+##'
+##' bm <- Velocyto_Into_Seurat(Seurat_Obj = BA_combined, Loom_Obj = ldat, Convert_scVelo = T, OutPrefix = BA_prefix)
+
+Velocity_calu_plot <- function(emat,nmat,cell.dist,prefix,emb,cell.colors){
+#计算RNA速率
+rvel <- gene.relative.velocity.estimates(
+  emat,nmat,
+  deltaT = 1, kCells = 10,
+  cell.dist = cell.dist,
+  fit.quantile = 0.02, n.cores = 1)
+save(rvel,file = paste0(prefix, "velocity_rvel.Rdata"))
+
+#全局速率可视化
+pdf(file = paste0(prefix, "velocity.pdf"), width = 10, height = 10)
+
+show.velocity.on.embedding.cor(
+  emb,rvel,n=50,
+  scale='sqrt',
+  cell.colors=ac(cell.colors,alpha=1),
+  cex=1.8,
+  arrow.scale=2.5,
+  show.grid.flow=T,
+  min.grid.cell.mass=3,
+  grid.n=40,
+  arrow.lwd=1.1
+)
+dev.off()
+
+#pca降维并绘图
+pdf(file = paste0(prefix, "velocity_PCA.pdf"), width = 10, height = 10)
+pca.velocity.plot(rvel,nPcs=5,
+                  plot.cols=2,
+                  cell.colors=ac(cell.colors,alpha=0.7),
+                  cex=1,pcount=0.1,pc.multipliers=c(1,-1,-1,-1,-1),
+                  arrow.scale = 0.1,
+                  arrow.lwd = 0.1,
+                  max.arrow.size= 0.1)
+dev.off()
+}
